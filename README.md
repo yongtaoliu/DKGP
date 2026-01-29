@@ -1,6 +1,6 @@
-# Deep Kernel GP - Minimal Version
+# Deep Kernel GP
 
-Deep Kernel Learning for Gaussian Process Regression - Essential Components Only
+Deep Kernel Gaussian Process Regression
 
 ## Installation
 
@@ -12,8 +12,8 @@ pip install -e .
 
 ```python
 import numpy as np
-from deep_kernel_gp import fit_dkgp, predict
-from deep_kernel_gp.acquisition import expected_improvement
+from dkgpr import fit_dkgp, predict
+from dkgpr.acquisition import expected_improvement
 
 # Generate data
 X_train = np.random.randn(100, 50)
