@@ -312,7 +312,7 @@ def train_dkgp_classifier(
     if not isinstance(datapoints, torch.Tensor):
         datapoints = torch.from_numpy(datapoints).double()
     else:
-        datapoints = datapoints.double()
+        datapoints = datapoints.float()
     
     if not isinstance(targets, torch.Tensor):
         targets = torch.from_numpy(targets).long()
