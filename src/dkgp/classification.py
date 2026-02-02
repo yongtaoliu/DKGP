@@ -369,7 +369,11 @@ def train_dkgp_classifier(
         
         # Compute loss
         loss = -mll(output, targets)
-        
+
+        # Ensure scalar
+        if loss.dim() > 0 or loss.numel() != 1:
+            loss = loss.sum()
+
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
