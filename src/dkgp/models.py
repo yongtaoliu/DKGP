@@ -274,16 +274,13 @@ class DeepKernelGP(nn.Module):
         return self.gp_model(features)
 
     def update_gp_data(self):
-        """
-        Update GP training data with current features from feature extractor.
-        
-        This should be called during training to update the GP with the
-        latest learned features.
-        """
+        """Update GP training data with current features."""
         features = self.feature_extractor(self.train_datapoints)
-        targets = (
-            self.train_targets.unsqueeze(-1) 
-            if self.train_targets.ndim == 1 
-            else self.train_targets
-        )
+        
+        # Ensure targets are 1D, then make 2D for BoTorch
+        targets = self.train_targets
+        if targets.ndim > 1:
+            targets = targets.squeeze()  # Make 1D
+        targets = targets.unsqueeze(-1)  # Make [n, 1] for BoTorch
+        
         self.gp_model.set_train_data(features, targets, strict=False)
