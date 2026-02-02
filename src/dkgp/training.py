@@ -1,6 +1,7 @@
 """
 Training utilities for Deep Kernel GP models.
 """
+from xml.parsers.expat import model
 import torch
 import matplotlib.pyplot as plt
 from gpytorch.mlls import ExactMarginalLogLikelihood
@@ -182,7 +183,12 @@ def train_dkgp(
         
         # Compute loss
         loss = -mll(output, model.gp_model.train_targets)
-        
+
+        # Ensure scalar loss
+        if isinstance(loss, torch.Tensor):
+            if loss.dim() > 0 or loss.numel() != 1:
+                loss = loss.sum()
+
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
