@@ -7,7 +7,7 @@ from scipy.stats import norm
 from scipy.optimize import minimize
 
 
-def EI(
+def expected_improvement(
     model,
     candidates,
     best_f,
@@ -69,7 +69,7 @@ def EI(
     return ei
 
 
-def UCB(
+def upper_confidence_bound(
     model,
     candidates,
     beta=2.0,
@@ -120,7 +120,7 @@ def UCB(
     return ucb
 
 
-def POI(
+def probability_of_improvement(
     model,
     candidates,
     best_f,
@@ -271,7 +271,7 @@ def expected_improvement_with_constraints(
         Constrained EI values
     """
     # Compute standard EI
-    ei = EI(model, candidates, best_f, xi, device, maximize)
+    ei = expected_improvement(model, candidates, best_f, xi, device, maximize)
     
     if constraint_models is None or constraint_thresholds is None:
         return ei

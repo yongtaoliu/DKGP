@@ -133,7 +133,7 @@ class ConfidenceWeightedMLL(nn.Module):
         weighted_log_probs = self.normalized_weights * log_probs
         
         return weighted_log_probs.sum()
-
+    
 
 class DeepKernelGP(nn.Module):
     """

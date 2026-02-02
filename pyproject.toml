@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Deep Kernel Learning for Gaussian Process Regression"
 readme = "README.md"
 authors = [
-    {name = "Yongtao Liu", email = "youngtaoliu@gmail.com"}
+    {name = "Your Name", email = "your.email@example.com"}
 ]
 license = {text = "MIT"}
 requires-python = ">=3.8"
@@ -16,8 +16,12 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence :: Microscopy",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
     "torch>=2.0.0",
@@ -44,8 +48,10 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yongtaoliu/DKLGPR"
-Repository = "https://github.com/yongtaoliu/DKLGPR"
+Homepage = "https://github.com/yourusername/deep-kernel-gp"
+Documentation = "https://deep-kernel-gp.readthedocs.io"
+Repository = "https://github.com/yourusername/deep-kernel-gp"
+"Bug Tracker" = "https://github.com/yourusername/deep-kernel-gp/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]

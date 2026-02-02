@@ -1,5 +1,5 @@
 """
-Deep Kernel GP - Deep Kernel Learning for Gaussian Process Regression
+Deep Kernel GP - Deep Kernel Learning for Gaussian Process Regression and Classification
 """
 
 from .models import DeepKernelGP, ImageFeatureExtractor
@@ -11,6 +11,11 @@ from .acquisition import (
     probability_of_improvement,
     thompson_sampling,
     expected_improvement_with_constraints,
+)
+from .classification import (
+    DeepKernelGPClassifier,
+    fit_dkgp_classifier,
+    predict_classifier,
 )
 from . import utils
 
@@ -27,5 +32,8 @@ __all__ = [
     "probability_of_improvement",
     "thompson_sampling",
     "expected_improvement_with_constraints",
+    "DeepKernelGPClassifier",
+    "fit_dkgp_classifier",
+    "predict_classifier",
     "utils",
 ]
