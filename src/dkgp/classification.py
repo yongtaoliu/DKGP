@@ -160,6 +160,9 @@ class DeepKernelGPClassifier(nn.Module):
             Predicted class labels
         """
         probs = self.predict_proba(x)
+        # For multi-class, argmax along class dimension (dim=0 after transpose)
+        if probs.dim() > 1 and probs.shape[0] != x.shape[0]:
+            return torch.argmax(probs, dim=0)
         return torch.argmax(probs, dim=-1)
     
     def update_gp_data(self):
