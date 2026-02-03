@@ -6,6 +6,65 @@ import torch
 import matplotlib.pyplot as plt
 from scipy.stats import norm
 
+def get_grid_coords (img, step=1):
+    """
+    Generate coordinate grid for a single 2D image.
+    
+    Args:
+        img: 2D numpy array
+        step: distance between grid points
+    
+    Returns:
+        N x 2 array of (y, x) coordinates
+    """
+    h, w = img.shape[:2]
+    coords = []
+    for i in range(0, h, step):
+        for j in range(0, w, step):
+            coords.append([i, j])
+    return np.array(coords)
+
+
+def get_subimages(img, coordinates, window_size):
+    """
+    Extract subimages centered at given coordinates.
+    
+    Args:
+        img: 2D or 3D numpy array (h, w) or (h, w, c)
+        coordinates: N x 2 array of (y, x) coordinates
+        window_size: size of square window to extract
+    
+    Returns:
+        subimages: (N, window_size, window_size, channels) array
+        valid_coords: coordinates where extraction succeeded
+        valid_indices: indices of valid extractions
+    """
+    if img.ndim == 2:
+        img = img[..., None]
+    
+    h, w, c = img.shape
+    half_w = window_size // 2
+    
+    subimages = []
+    valid_coords = []
+    valid_indices = []
+    
+    for idx, (y, x) in enumerate(coordinates):
+        # Check boundaries
+        if (y - half_w >= 0 and y + half_w <= h and
+            x - half_w >= 0 and x + half_w <= w):
+            
+            patch = img[y - half_w:y + half_w,
+                       x - half_w:x + half_w, :]
+            
+            if patch.shape[0] == window_size and patch.shape[1] == window_size:
+                subimages.append(patch)
+                valid_coords.append([y, x])
+                valid_indices.append(idx)
+    
+    return (np.array(subimages), 
+            np.array(valid_coords), 
+            np.array(valid_indices))
 
 def standardize_data(X, y, X_mean=None, X_std=None, y_mean=None, y_std=None):
     """

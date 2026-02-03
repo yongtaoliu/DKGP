@@ -19,6 +19,12 @@ from .gpr import (
     ConfidenceWeightedMLL,
     train_dkgp,
     fit_dkgp,
+    predict_dkgpr,
+    expected_improvement,
+    upper_confidence_bound,
+    probability_of_improvement,
+    thompson_sampling,
+    expected_improvement_with_constraints
 )
 
 # Classification
@@ -32,25 +38,13 @@ from .gpc import (
     predict_classifier,
 )
 
-# Prediction
-from .prediction import predict
-
-# Acquisition functions
-from .acquisition import (
-    expected_improvement,
-    upper_confidence_bound,
-    probability_of_improvement,
-    thompson_sampling,
-    expected_improvement_with_constraints,
-)
 
 # Submodules - for convenience imports
-from . import gpr as dkgpr  # Allow: from dkgp import dkgpr
-from . import gpc as dkgpc  # Allow: from dkgp import dkgpc
-from . import acquisition
+from . import gpr as dkgpr 
+from . import gpc as dkgpc
+from . import gppw as dkgppw 
 from . import utils
 from . import models
-from . import prediction
 
 __version__ = "0.2.0"
 
@@ -68,6 +62,12 @@ __all__ = [
     "ConfidenceWeightedMLL",
     "train_dkgp",
     "fit_dkgp",
+    "predict_dkgpr",
+    "expected_improvement",
+    "upper_confidence_bound",
+    "probability_of_improvement",
+    "thompson_sampling",
+    "expected_improvement_with_constraints",
     # Classification
     "DeepKernelGPClassifier",
     "BinaryGPClassificationModel",
@@ -76,19 +76,11 @@ __all__ = [
     "train_dkgp_classifier",
     "fit_dkgp_classifier",
     "predict_classifier",
-    # Prediction
-    "predict",
-    # Acquisition
-    "expected_improvement",
-    "upper_confidence_bound",
-    "probability_of_improvement",
-    "thompson_sampling",
-    "expected_improvement_with_constraints",
+
     # Submodules
     "dkgpr",
     "dkgpc",
-    "acquisition",
+    "dkgppw",
     "utils",
     "models",
-    "prediction",
 ]
