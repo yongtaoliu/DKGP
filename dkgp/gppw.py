@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from gpytorch.kernels import RBFKernel, ScaleKernel
 from botorch.models.pairwise_gp import PairwiseGP
 from botorch.models.transforms import Normalize
-from gpytorch.mlls import PairwiseLaplaceMarginalLogLikelihood
+from botorch.models.pairwise_gp import PairwiseLaplaceMarginalLogLikelihood
 from botorch.acquisition.preference import AnalyticExpectedUtilityOfBestOption
 import random
 
@@ -835,10 +835,54 @@ def fit_dkgppw(
 
     return mll, pref_model, dkl_model
 
+
+def predict_utility(
+    model,
+    test_data,
+    device='cuda' if torch.cuda.is_available() else 'cpu',
+    return_std=False
+):
+    """
+    Predict utility for test data.
+    
+    Parameters
+    ----------
+    model : DeepKernelPairwiseGP
+        Trained model
+    test_data : np.ndarray or torch.Tensor
+        Test features, shape (n_test, input_dim)
+    device : str
+        Device to use
+    return_std : bool
+        If True, return std instead of variance
+    
+    Returns
+    -------
+    mean : np.ndarray
+        Predicted utility means, shape (n_test,)
+    uncertainty : np.ndarray
+        Predicted variance (or std if return_std=True), shape (n_test,)
+    """
+    if not isinstance(test_data, torch.Tensor):
+        test_data = torch.from_numpy(test_data).double()
+    else:
+        test_data = test_data.double()
+
+    test_data = test_data.to(device)
+    model.eval()
+
+    with torch.no_grad():
+        mean, variance = model.predict_utilities(test_data)
+        mean = mean.cpu().numpy()
+        variance = variance.cpu().numpy()
+
+    if return_std:
+        return mean, np.sqrt(variance)
+    return mean, variance
 # ============================================================================
 # Acquisition Functions
 # ============================================================================
-def acq_ucb(dkl_model, X_pool, previous_comparisons=None, 
+def dkgppw_ucb(dkl_model, X_pool, previous_comparisons=None, 
                             top_k=100, beta=2.0, strategy='max_ucb'):
     """
     Get next comparison pair using UCB (Upper Confidence Bound) acquisition.
@@ -1020,7 +1064,7 @@ def acq_ucb(dkl_model, X_pool, previous_comparisons=None,
     
     return selected_points
 
-def acq_eubo (dkl_model, X_pool, previous_comparisons=None, top_k=100):
+def dkgppw_eubo (dkl_model, X_pool, previous_comparisons=None, top_k=100):
     """
     Get next point(s) using BoTorch Expected Utility of Best Option acquisition with DKL.
 
@@ -1279,55 +1323,9 @@ def sample_comparison_pairs(train_indices, n_pairs_per_point=1, best_train_idx=N
 
     return pairs_log
 
-
 # ============================================================================
 # Utility Functions
 # ============================================================================
-
-def predict_utility(
-    model,
-    test_data,
-    device='cuda' if torch.cuda.is_available() else 'cpu',
-    return_std=False
-):
-    """
-    Predict utility for test data.
-    
-    Parameters
-    ----------
-    model : DeepKernelPairwiseGP
-        Trained model
-    test_data : np.ndarray or torch.Tensor
-        Test features, shape (n_test, input_dim)
-    device : str
-        Device to use
-    return_std : bool
-        If True, return std instead of variance
-    
-    Returns
-    -------
-    mean : np.ndarray
-        Predicted utility means, shape (n_test,)
-    uncertainty : np.ndarray
-        Predicted variance (or std if return_std=True), shape (n_test,)
-    """
-    if not isinstance(test_data, torch.Tensor):
-        test_data = torch.from_numpy(test_data).double()
-    else:
-        test_data = test_data.double()
-
-    test_data = test_data.to(device)
-    model.eval()
-
-    with torch.no_grad():
-        mean, variance = model.predict_utilities(test_data)
-        mean = mean.cpu().numpy()
-        variance = variance.cpu().numpy()
-
-    if return_std:
-        return mean, np.sqrt(variance)
-    return mean, variance
-
 def plot_option(img_full, coords, spectra, v_step, pool_idx, train_idx=None):
     """
     Plot a single option for user comparison.
@@ -1349,7 +1347,7 @@ def plot_option(img_full, coords, spectra, v_step, pool_idx, train_idx=None):
     option_label : str
         Label for the option
     """
-    _, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 3), dpi=150)
+    _, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 3), dpi=80)
 
     # Image with location markers for comparision
     ax1.imshow(img_full, origin='lower')
@@ -1364,7 +1362,6 @@ def plot_option(img_full, coords, spectra, v_step, pool_idx, train_idx=None):
     plt.show()
     plt.pause(0.1)
     plt.close()
-
 
 def plot_predictions(coords, y, coord_train, mean, var, step, total_steps):
     """

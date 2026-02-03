@@ -54,8 +54,7 @@ dkgp/
 ├── models.py         # All feature extractors
 ├── gpr.py           # Gaussian Process Regression
 ├── gpc.py           # Gaussian Process Classification
-├── prediction.py    # Prediction utilities
-├── acquisition.py   # Acquisition functions for BO
+├── gppw.py          # Gaussian Process Pairwise
 ├── utils.py         # Utility functions
 └── __init__.py      # Package exports
 ```

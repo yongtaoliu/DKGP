@@ -38,6 +38,21 @@ from .gpc import (
     predict_classifier,
 )
 
+# Pairwise GP
+from .gppw import (
+    DeepKernelPairwiseGP,
+    fit_dkgppw,
+    predict_utility,
+    train_dkgppw,
+    dkgppw_eubo,
+    dkgppw_ucb,
+    sample_comparison_pairs,
+    get_user_preference,
+    get_simulated_preference,
+    acquire_preference,
+    plot_option,
+    plot_predictions,
+)
 
 # Submodules - for convenience imports
 from . import gpr as dkgpr 
@@ -76,6 +91,19 @@ __all__ = [
     "train_dkgp_classifier",
     "fit_dkgp_classifier",
     "predict_classifier",
+    # Pairwise GP
+    "DeepKernelPairwiseGP",
+    "fit_dkgppw",
+    "predict_utility",
+    "train_dkgppw",
+    "dkgppw_eubo",
+    "dkgppw_ucb",
+    "sample_comparison_pairs",
+    "get_user_preference",
+    "get_simulated_preference",
+    "acquire_preference",
+    "plot_option",
+    "plot_predictions",
 
     # Submodules
     "dkgpr",

@@ -2,11 +2,10 @@ README.md
 pyproject.toml
 setup.py
 dkgp/__init__.py
-dkgp/acquisition.py
 dkgp/gpc.py
+dkgp/gppw.py
 dkgp/gpr.py
 dkgp/models.py
-dkgp/prediction.py
 dkgp/py.typed
 dkgp/utils.py
 dkgp.egg-info/PKG-INFO
