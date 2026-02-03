@@ -303,7 +303,7 @@ def get_feature_extractor(
     extractor_type : str
         Type of feature extractor:
         - 'fc': Simple fully-connected
-        - 'fcbn': FC + BatchNorm + Dropout (recommended)
+        - 'fcbn': FC + BatchNorm + Dropout
         - 'resnet': ResNet with skip connections
         - 'attention': Self-attention based
         - 'wide_deep': Wide & Deep architecture

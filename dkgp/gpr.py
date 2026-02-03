@@ -203,7 +203,7 @@ class DeepKernelGP(nn.Module):
         )
 
         self.train_datapoints = datapoints
-        self.train_targets = targets.squeeze() if targets.ndim > 1 else targets
+        self.train_targets = targets.squeeze()
         self.feature_dim = feature_dim
         self.input_dim = input_dim
         self.extractor_type = extractor_type
@@ -242,11 +242,20 @@ class DeepKernelGP(nn.Module):
     def update_gp_data(self):
         """Update GP training data with current features."""
         features = self.feature_extractor(self.train_datapoints)
+        
+        # Ensure targets are 1D
         targets = self.train_targets
-        if targets.ndim > 1:
+        if targets.dim() > 1:
             targets = targets.squeeze()
-        targets = targets.unsqueeze(-1)
-        self.gp_model.set_train_data(features, targets, strict=False)
+        
+        # Convert to (n, 1) for set_train_data
+        targets_2d = targets.unsqueeze(-1)
+        
+        # Update GP data
+        self.gp_model.set_train_data(features, targets_2d, strict=False)
+        
+        # Ensure train_targets remains 1D (GPyTorch expects this)
+        self.gp_model.train_targets = targets
 
 
 # ============================================================================
@@ -584,7 +593,6 @@ def fit_dkgp(
         lr_features=lr_features,
         lr_gp=lr_gp,
         device=device,
-        verbose=verbose,
         patience=patience,
         min_delta=min_delta
     )
@@ -603,15 +611,5 @@ def fit_dkgp(
             gp_model.likelihood,
             gp_model
         )
-        
-    if plot_loss and verbose:
-        plt.figure(figsize=(10, 5))
-        plt.plot(losses, linewidth=2, color='#2E86AB')
-        plt.xlabel('Epoch', fontsize=12)
-        plt.ylabel('Negative Log Likelihood', fontsize=12)
-        plt.title(f'Training Loss ({extractor_type} extractor)', fontsize=14, fontweight='bold')
-        plt.grid(True, alpha=0.3, linestyle='--')
-        plt.tight_layout()
-        plt.show()
 
     return mll, gp_model, dkl_model, losses
