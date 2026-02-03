@@ -60,7 +60,7 @@ class FCBNFeatureExtractor(nn.Module):
         super().__init__()
         
         if hidden_dims is None:
-            hidden_dims = [256, 128, 64]
+            hidden_dims = [128, 64, 32]
 
         layers = []
         prev_dim = input_dim
@@ -234,55 +234,6 @@ class AttentionFeatureExtractor(nn.Module):
         return x
 
 
-class WideDeepFeatureExtractor(nn.Module):
-    """
-    Wide & Deep architecture: combines linear and deep paths.
-    Good for mixed feature types.
-    
-    Parameters
-    ----------
-    input_dim : int
-        Input dimensionality
-    feature_dim : int
-        Output feature dimensionality
-    deep_dims : list of int
-        Deep path hidden dimensions
-    dropout : float
-        Dropout rate
-    """
-    
-    def __init__(self, input_dim, feature_dim=16, deep_dims=None, dropout=0.2):
-        super().__init__()
-        
-        if deep_dims is None:
-            deep_dims = [128, 64]
-        
-        # Wide path (linear)
-        self.wide_path = nn.Linear(input_dim, feature_dim // 2)
-        
-        # Deep path (nonlinear)
-        deep_layers = []
-        prev_dim = input_dim
-        for hidden_dim in deep_dims:
-            deep_layers.extend([
-                nn.Linear(prev_dim, hidden_dim),
-                nn.ReLU(),
-                nn.BatchNorm1d(hidden_dim),
-                nn.Dropout(dropout)
-            ])
-            prev_dim = hidden_dim
-        deep_layers.append(nn.Linear(prev_dim, feature_dim // 2))
-        self.deep_path = nn.Sequential(*deep_layers)
-        
-        self.input_dim = input_dim
-        self.feature_dim = feature_dim
-    
-    def forward(self, x):
-        wide = self.wide_path(x)
-        deep = self.deep_path(x)
-        return torch.cat([wide, deep], dim=-1)
-
-
 # ============================================================================
 # Feature Extractor Factory
 # ============================================================================
@@ -306,7 +257,6 @@ def get_feature_extractor(
         - 'fcbn': FC + BatchNorm + Dropout
         - 'resnet': ResNet with skip connections
         - 'attention': Self-attention based
-        - 'wide_deep': Wide & Deep architecture
         - 'custom': User-provided nn.Module
     input_dim : int
         Input dimensionality
@@ -361,10 +311,6 @@ def get_feature_extractor(
         num_heads = kwargs.get('num_heads', 4)
         return AttentionFeatureExtractor(input_dim, feature_dim, hidden_dim, num_heads)
     
-    elif extractor_type == 'wide_deep':
-        deep_dims = kwargs.get('deep_dims', hidden_dims or [128, 64])
-        return WideDeepFeatureExtractor(input_dim, feature_dim, deep_dims, dropout)
-    
     elif extractor_type == 'custom':
         custom_extractor = kwargs.get('custom_extractor')
         if custom_extractor is None:
@@ -380,5 +326,4 @@ def get_feature_extractor(
 # Backward Compatibility
 # ============================================================================
 
-# Keep old name for backward compatibility
 ImageFeatureExtractor = FCBNFeatureExtractor

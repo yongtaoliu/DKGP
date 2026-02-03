@@ -8,7 +8,6 @@ from .models import (
     FCBNFeatureExtractor,
     ResNetFeatureExtractor,
     AttentionFeatureExtractor,
-    WideDeepFeatureExtractor,
     get_feature_extractor,
     ImageFeatureExtractor,  # Backward compatibility
 )
@@ -69,7 +68,6 @@ __all__ = [
     "FCBNFeatureExtractor",
     "ResNetFeatureExtractor",
     "AttentionFeatureExtractor",
-    "WideDeepFeatureExtractor",
     "get_feature_extractor",
     "ImageFeatureExtractor",
     # Regression
