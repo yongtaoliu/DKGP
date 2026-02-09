@@ -196,12 +196,6 @@ mll, gp, dkl, losses = fit_dkgp(
     extractor_kwargs={'custom_extractor': hybrid}
 )
 ```
-
-## Version History
-
-- **v0.2.0** - Restructured with multiple feature extractors
-- **v0.1.0** - Initial release
-
 ## License
 
 MIT
