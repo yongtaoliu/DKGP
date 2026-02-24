@@ -5,11 +5,9 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-
 # ============================================================================
 # Feature Extractors
 # ============================================================================
-
 class FCFeatureExtractor(nn.Module):
     """
     Simple fully-connected feature extractor.
@@ -175,6 +173,7 @@ class AttentionFeatureExtractor(nn.Module):
             self.key = nn.Linear(dim, dim)
             self.value = nn.Linear(dim, dim)
             self.out = nn.Linear(dim, dim)
+            self.last_attention_weights = None # Store last attention weights
             
         def forward(self, x):
             batch_size = x.shape[0]
@@ -187,6 +186,9 @@ class AttentionFeatureExtractor(nn.Module):
             # Attention scores
             scores = torch.matmul(Q, K.transpose(-2, -1)) / np.sqrt(self.head_dim)
             attention = torch.softmax(scores, dim=-1)
+
+            # Store for later retrieval
+            self.last_attention_weights = attention.detach()
             
             # Apply attention
             out = torch.matmul(attention, V)
@@ -194,6 +196,10 @@ class AttentionFeatureExtractor(nn.Module):
             out = self.out(out)
             
             return out
+        
+        def get_attention_weights(self):
+            """Get the last computed attention weights."""
+            return self.last_attention_weights
     
     def __init__(self, input_dim, feature_dim=16, hidden_dim=128, num_heads=4):
         super().__init__()
@@ -233,6 +239,25 @@ class AttentionFeatureExtractor(nn.Module):
         x = self.output_projection(x)
         return x
 
+    def get_attention_maps(self, x):
+        """
+        Get attention maps for input x.
+        
+        Parameters
+        ----------
+        x : torch.Tensor
+            Input tensor, shape (batch, input_dim)
+            
+        Returns
+        -------
+        attention_weights : torch.Tensor
+            Attention weights, shape (batch, num_heads, num_heads)
+        """
+        self.eval()
+        with torch.no_grad():
+            x_proj = self.input_projection(x)
+            _, attention = self.attention(x_proj, return_attention=True)
+        return attention
 
 # ============================================================================
 # Feature Extractor Factory

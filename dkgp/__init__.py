@@ -53,6 +53,19 @@ from .gppw import (
     plot_predictions,
 )
 
+# utilities
+from .utils import (
+    get_grid_coords,
+    get_subimages,
+    split_train_test,
+    get_attention_scores,
+    get_attention_for_sample,
+    analyze_attention_locality,
+    summarize_attention,
+    save_model,
+    load_model,
+)
+
 # Submodules - for convenience imports
 from . import gpr as dkgpr 
 from . import gpc as dkgpc
@@ -102,6 +115,16 @@ __all__ = [
     "acquire_preference",
     "plot_option",
     "plot_predictions",
+    # Utilities
+    "get_grid_coords",
+    "get_subimages",
+    "split_train_test",
+    "get_attention_scores",
+    "get_attention_for_sample",
+    "analyze_attention_locality",
+    "summarize_attention",
+    "save_model",
+    "load_model",
 
     # Submodules
     "dkgpr",

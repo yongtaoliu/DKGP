@@ -6,6 +6,7 @@ import torch
 import matplotlib.pyplot as plt
 from scipy.stats import norm
 
+### Data Preprocessing Functions ###
 def get_grid_coords (img, step=1):
     """
     Generate coordinate grid for a single 2D image.
@@ -23,7 +24,6 @@ def get_grid_coords (img, step=1):
         for j in range(0, w, step):
             coords.append([i, j])
     return np.array(coords)
-
 
 def get_subimages(img, coordinates, window_size):
     """
@@ -66,216 +66,6 @@ def get_subimages(img, coordinates, window_size):
             np.array(valid_coords), 
             np.array(valid_indices))
 
-def standardize_data(X, y, X_mean=None, X_std=None, y_mean=None, y_std=None):
-    """
-    Standardize training data (zero mean, unit variance).
-    
-    Parameters
-    ----------
-    X : np.ndarray
-        Input features
-    y : np.ndarray
-        Target values
-    X_mean, X_std, y_mean, y_std : np.ndarray, optional
-        Pre-computed statistics for test data
-    
-    Returns
-    -------
-    X_scaled : np.ndarray
-        Standardized inputs
-    y_scaled : np.ndarray
-        Standardized targets
-    stats : dict
-        Dictionary with mean and std for inverse transform
-    """
-    if X_mean is None:
-        X_mean = X.mean(axis=0)
-        X_std = X.std(axis=0) + 1e-8
-    
-    if y_mean is None:
-        y_mean = y.mean()
-        y_std = y.std() + 1e-8
-    
-    X_scaled = (X - X_mean) / X_std
-    y_scaled = (y - y_mean) / y_std
-    
-    stats = {
-        'X_mean': X_mean,
-        'X_std': X_std,
-        'y_mean': y_mean,
-        'y_std': y_std
-    }
-    
-    return X_scaled, y_scaled, stats
-
-
-def inverse_standardize(y_scaled, y_mean, y_std):
-    """
-    Inverse standardization transform.
-    
-    Parameters
-    ----------
-    y_scaled : np.ndarray
-        Standardized values
-    y_mean : float
-        Original mean
-    y_std : float
-        Original std
-    
-    Returns
-    -------
-    y : np.ndarray
-        Original scale values
-    """
-    return y_scaled * y_std + y_mean
-
-
-def compute_calibration(y_true, mean, std, n_bins=10):
-    """
-    Compute calibration statistics for uncertainty estimates.
-    
-    Parameters
-    ----------
-    y_true : np.ndarray
-        True values
-    mean : np.ndarray
-        Predicted means
-    std : np.ndarray
-        Predicted standard deviations
-    n_bins : int
-        Number of bins for calibration curve
-    
-    Returns
-    -------
-    calibration_dict : dict
-        Dictionary with calibration statistics
-    """
-    # Compute standardized residuals
-    z_scores = (y_true - mean) / (std + 1e-8)
-    
-    # Expected vs observed coverage
-    confidence_levels = np.linspace(0.1, 0.9, n_bins)
-    observed_coverage = []
-    
-    for conf in confidence_levels:
-        # Number of std devs for this confidence level
-        z = norm.ppf((1 + conf) / 2)
-        
-        # Count points within interval
-        in_interval = np.abs(z_scores) <= z
-        observed_coverage.append(in_interval.mean())
-    
-    # Mean absolute calibration error
-    mace = np.mean(np.abs(confidence_levels - observed_coverage))
-    
-    return {
-        'confidence_levels': confidence_levels,
-        'observed_coverage': np.array(observed_coverage),
-        'mace': mace,
-        'z_scores': z_scores
-    }
-
-
-def plot_calibration(calibration_dict, save_path=None):
-    """
-    Plot calibration curve.
-    
-    Parameters
-    ----------
-    calibration_dict : dict
-        Output from compute_calibration
-    save_path : str, optional
-        Path to save figure
-    """
-    conf = calibration_dict['confidence_levels']
-    obs = calibration_dict['observed_coverage']
-    mace = calibration_dict['mace']
-    
-    plt.figure(figsize=(8, 8))
-    plt.plot([0, 1], [0, 1], 'k--', label='Perfect calibration')
-    plt.plot(conf, obs, 'o-', linewidth=2, markersize=8, label='Model')
-    plt.xlabel('Expected Coverage', fontsize=12)
-    plt.ylabel('Observed Coverage', fontsize=12)
-    plt.title(f'Calibration Curve (MACE = {mace:.3f})', fontsize=14, fontweight='bold')
-    plt.legend(fontsize=11)
-    plt.grid(True, alpha=0.3)
-    plt.tight_layout()
-    
-    if save_path:
-        plt.savefig(save_path, dpi=150, bbox_inches='tight')
-    plt.show()
-
-
-def plot_predictions(
-    y_true, 
-    y_pred, 
-    uncertainty=None,
-    title='Predictions vs True Values',
-    save_path=None
-):
-    """
-    Plot predictions against true values.
-    
-    Parameters
-    ----------
-    y_true : np.ndarray
-        True values
-    y_pred : np.ndarray
-        Predicted values
-    uncertainty : np.ndarray, optional
-        Uncertainty estimates (std or variance)
-    title : str
-        Plot title
-    save_path : str, optional
-        Path to save figure
-    """
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
-    
-    # Scatter plot
-    axes[0].scatter(y_true, y_pred, alpha=0.6, s=50, edgecolors='k', linewidth=0.5)
-    
-    # Perfect prediction line
-    min_val = min(y_true.min(), y_pred.min())
-    max_val = max(y_true.max(), y_pred.max())
-    axes[0].plot([min_val, max_val], [min_val, max_val], 'r--', lw=2, label='Perfect')
-    
-    # Compute R²
-    r2 = 1 - np.sum((y_true - y_pred)**2) / np.sum((y_true - y_true.mean())**2)
-    
-    axes[0].set_xlabel('True Values', fontsize=12)
-    axes[0].set_ylabel('Predicted Values', fontsize=12)
-    axes[0].set_title(f'{title}\n$R^2$ = {r2:.3f}', fontsize=13, fontweight='bold')
-    axes[0].legend()
-    axes[0].grid(True, alpha=0.3)
-    
-    # Residual plot
-    residuals = y_true - y_pred
-    axes[1].scatter(y_pred, residuals, alpha=0.6, s=50, edgecolors='k', linewidth=0.5)
-    axes[1].axhline(y=0, color='r', linestyle='--', lw=2)
-    
-    if uncertainty is not None:
-        # Add uncertainty bands
-        axes[1].fill_between(
-            np.sort(y_pred),
-            -2*np.sort(uncertainty),
-            2*np.sort(uncertainty),
-            alpha=0.2,
-            label='±2σ'
-        )
-        axes[1].legend()
-    
-    axes[1].set_xlabel('Predicted Values', fontsize=12)
-    axes[1].set_ylabel('Residuals', fontsize=12)
-    axes[1].set_title('Residual Plot', fontsize=13, fontweight='bold')
-    axes[1].grid(True, alpha=0.3)
-    
-    plt.tight_layout()
-    
-    if save_path:
-        plt.savefig(save_path, dpi=150, bbox_inches='tight')
-    plt.show()
-
-
 def split_train_test(X, y, test_size=0.2, random_state=None):
     """
     Split data into train and test sets.
@@ -307,7 +97,224 @@ def split_train_test(X, y, test_size=0.2, random_state=None):
     
     return X[train_idx], X[test_idx], y[train_idx], y[test_idx]
 
+### Attention Analysis Functions ###
+def get_attention_scores(model, X):
+    """
+    Extract attention scores from a model with attention extractor.
+    
+    Parameters
+    ----------
+    model : DeepKernelPairwiseGP, DeepKernelGP, or DeepKernelGPClassifier
+        Trained model with attention extractor
+    X : np.ndarray or torch.Tensor
+        Input data, shape (n_samples, input_dim)
+        
+    Returns
+    -------
+    attention_scores : np.ndarray
+        Attention scores, shape (n_samples, num_heads, num_heads)
+        
+    Examples
+    --------
+    >>> # After training with attention extractor
+    >>> attention = get_attention_scores(dkl_model, X_test)
+    >>> print(attention.shape)  # (n_test, 4, 4) for 4 heads
+    """
+    if not isinstance(X, torch.Tensor):
+        X = torch.from_numpy(X).double()
+    
+    device = next(model.parameters()).device
+    X = X.to(device)
+    
+    # Check if model has feature extractor
+    if not hasattr(model, 'feature_extractor'):
+        raise ValueError("Model does not have feature_extractor attribute")
+    
+    extractor = model.feature_extractor
+    
+    # Check if extractor is attention-based
+    if not hasattr(extractor, 'get_attention_maps'):
+        raise ValueError(
+            f"Feature extractor type '{type(extractor).__name__}' does not support attention extraction. "
+            "Use extractor_type='attention' when training the model."
+        )
+    
+    # Extract attention
+    attention = extractor.get_attention_maps(X)
+    
+    return attention.cpu().numpy()
 
+def get_attention_for_sample(model, x, average_heads=False):
+    """
+    Get attention scores for a single sample.
+    
+    Parameters
+    ----------
+    model : trained model
+        Model with attention extractor
+    x : np.ndarray or torch.Tensor
+        Single sample, shape (input_dim,) or (1, input_dim)
+    average_heads : bool
+        If True, average across attention heads
+        
+    Returns
+    -------
+    attention : np.ndarray
+        Attention scores
+        - If average_heads=False: shape (num_heads, num_heads)
+        - If average_heads=True: shape (num_heads,)
+        
+    Examples
+    --------
+    >>> # Get attention for one spectrum
+    >>> x = X_spectra[0]
+    >>> attention = get_attention_for_sample(model, x)
+    >>> print(attention.shape)  # (4, 4) for 4 attention heads
+    
+    >>> # Average across heads
+    >>> avg_attention = get_attention_for_sample(model, x, average_heads=True)
+    >>> print(avg_attention.shape)  # (4,)
+    """
+    if not isinstance(x, torch.Tensor):
+        x = torch.from_numpy(x).double()
+    
+    if x.ndim == 1:
+        x = x.unsqueeze(0)
+    
+    scores = get_attention_scores(model, x)
+    scores = scores[0]  # Get first (only) sample
+    
+    if average_heads:
+        # Average across heads dimension
+        scores = scores.mean(axis=0)
+    
+    return scores
+
+def analyze_attention_locality(attention_scores):
+    """
+    Analyze how local vs global the attention patterns are.
+    
+    Parameters
+    ----------
+    attention_scores : np.ndarray
+        Attention scores, shape (num_heads, num_heads) or (num_heads,)
+        
+    Returns
+    -------
+    locality_scores : dict
+        Dictionary with locality analysis
+        
+    Examples
+    --------
+    >>> attention = get_attention_for_sample(model, x)
+    >>> locality = analyze_attention_locality(attention)
+    >>> print(locality['interpretation'])
+    """
+    if attention_scores.ndim == 1:
+        # Single head or averaged
+        attention_scores = attention_scores[np.newaxis, :]
+    
+    num_heads = attention_scores.shape[0]
+    results = {
+        'num_heads': num_heads,
+        'per_head': []
+    }
+    
+    for h in range(num_heads):
+        attn = attention_scores[h]
+        
+        # Entropy (higher = more dispersed attention)
+        entropy = -np.sum(attn * np.log(attn + 1e-10))
+        
+        # Maximum attention (lower = more distributed)
+        max_attn = attn.max()
+        
+        # Concentration ratio (top-3 / total)
+        top_3 = np.partition(attn, -3)[-3:].sum()
+        concentration = top_3
+        
+        # Interpretation
+        if concentration > 0.8:
+            interpretation = "Very focused (attends to few positions)"
+        elif concentration > 0.5:
+            interpretation = "Moderately focused"
+        else:
+            interpretation = "Distributed (attends globally)"
+        
+        results['per_head'].append({
+            'head': h,
+            'entropy': float(entropy),
+            'max_attention': float(max_attn),
+            'top3_concentration': float(concentration),
+            'interpretation': interpretation
+        })
+    
+    # Overall interpretation
+    avg_concentration = np.mean([h['top3_concentration'] for h in results['per_head']])
+    if avg_concentration > 0.8:
+        results['overall'] = "Model uses very focused attention"
+    elif avg_concentration > 0.5:
+        results['overall'] = "Model uses balanced attention"
+    else:
+        results['overall'] = "Model uses distributed attention"
+    
+    return results
+
+
+def summarize_attention(model, X, sample_idx=None):
+    """
+    Print a summary of attention patterns.
+    
+    Parameters
+    ----------
+    model : trained model
+        Model with attention extractor
+    X : np.ndarray
+        Input data
+    sample_idx : int, optional
+        Specific sample to analyze. If None, analyzes first sample.
+        
+    Examples
+    --------
+    >>> summarize_attention(model, X_spectra)
+    >>> summarize_attention(model, X_spectra, sample_idx=5)
+    """
+    if sample_idx is None:
+        sample_idx = 0
+    
+    x = X[sample_idx:sample_idx+1]
+    attention = get_attention_for_sample(model, x)
+    
+    print("="*60)
+    print(f"Attention Analysis - Sample {sample_idx}")
+    print("="*60)
+    print(f"\nAttention shape: {attention.shape}")
+    print(f"Number of heads: {attention.shape[0]}")
+    
+    # Analyze each head
+    locality = analyze_attention_locality(attention)
+    
+    print(f"\nPer-Head Analysis:")
+    print("-"*60)
+    for head_info in locality['per_head']:
+        h = head_info['head']
+        print(f"\nHead {h}:")
+        print(f"  Entropy: {head_info['entropy']:.4f}")
+        print(f"  Max attention: {head_info['max_attention']:.4f}")
+        print(f"  Top-3 concentration: {head_info['top3_concentration']:.4f}")
+        print(f"  → {head_info['interpretation']}")
+        
+        # Show top attended positions
+        head_attn = attention[h]
+        top_3_idx = np.argsort(head_attn)[-3:][::-1]
+        print(f"  Top-3 positions: {top_3_idx.tolist()}")
+        print(f"  Weights: {head_attn[top_3_idx].tolist()}")
+    
+    print(f"\n{'='*60}")
+    print(f"Overall: {locality['overall']}")
+    print(f"{'='*60}")
+
+### Save and Load Model Functions ###
 def save_model(model, filepath):
     """
     Save trained model to disk.
@@ -327,7 +334,6 @@ def save_model(model, filepath):
         'train_datapoints': model.train_datapoints,
         'train_targets': model.train_targets,
     }, filepath)
-
 
 def load_model(filepath, device='cpu'):
     """
@@ -360,73 +366,5 @@ def load_model(filepath, device='cpu'):
     model.gp_model.load_state_dict(checkpoint['gp_model_state'])
     model.to(device)
     model.eval()
-    
+
     return model
-
-
-def compute_metrics(y_true, y_pred, y_std=None):
-    """
-    Compute various regression metrics.
-    
-    Parameters
-    ----------
-    y_true : np.ndarray
-        True values
-    y_pred : np.ndarray
-        Predicted values
-    y_std : np.ndarray, optional
-        Predicted standard deviations
-    
-    Returns
-    -------
-    metrics : dict
-        Dictionary of metrics
-    """
-    mse = np.mean((y_true - y_pred)**2)
-    rmse = np.sqrt(mse)
-    mae = np.mean(np.abs(y_true - y_pred))
-    r2 = 1 - np.sum((y_true - y_pred)**2) / np.sum((y_true - y_true.mean())**2)
-    
-    metrics = {
-        'mse': mse,
-        'rmse': rmse,
-        'mae': mae,
-        'r2': r2
-    }
-    
-    if y_std is not None:
-        # Negative log-likelihood
-        nll = 0.5 * np.mean(
-            np.log(2 * np.pi * y_std**2) + ((y_true - y_pred)**2) / (y_std**2)
-        )
-        metrics['nll'] = nll
-        
-        # Mean standardized log loss
-        msll = np.mean(
-            0.5 * np.log(2 * np.pi * y_std**2) + 
-            0.5 * ((y_true - y_pred) / y_std)**2
-        )
-        metrics['msll'] = msll
-    
-    return metrics
-
-
-def print_metrics(metrics, title="Model Performance"):
-    """
-    Pretty print metrics.
-    
-    Parameters
-    ----------
-    metrics : dict
-        Dictionary of metrics
-    title : str
-        Title to print
-    """
-    print("\n" + "="*50)
-    print(f"{title:^50}")
-    print("="*50)
-    
-    for key, value in metrics.items():
-        print(f"  {key.upper():10s}: {value:>12.6f}")
-    
-    print("="*50 + "\n")
