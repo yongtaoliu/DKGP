@@ -1,51 +1,45 @@
 # DKGP
 
+Deep Kernel Gaussian Process — combines deep neural networks with Gaussian Processes for regression, classification, and preference learning. The neural network learns a compressed feature representation; the GP is fit on top for uncertainty-aware predictions.
+
+**Version:** 0.2.0
 
 ```
 dkgp/
-├── models.py         # All feature extractors
-├── gpr.py           # Gaussian Process Regression
-├── gpc.py           # Gaussian Process Classification
-├── gppw.py          # Gaussian Process Pairwise
-├── utils.py         # Utility functions
-└── __init__.py      # Package exports
+├── models.py           # Feature extractors
+├── gpr.py              # GP Regression + Bayesian optimization
+├── gpc.py              # GP Classification
+├── gppw.py             # GP Pairwise (preference learning)
+├── sample_weighting.py # Learnable sample weights
+├── utils.py            # Attention analysis, model I/O, utilities
+└── __init__.py         # Package exports
 ```
+
+---
 
 ## Feature Extractors
 
 ### Available Extractors
 
-1. **`FCFeatureExtractor`** - Simple fully-connected
-   - Fast, lightweight
-   - Good for prototyping
-   - No regularization
-
-2. **`FCBNFeatureExtractor`** - FC + BatchNorm + Dropout (Default)
-   - Recommended for general use
-   - Prevents overfitting
-   - Most robust
-
-3. **`ResNetFeatureExtractor`** - ResNet with skip connections
-   - Better gradient flow
-   - Good for deeper networks
-   - Handles vanishing gradients
-
-4. **`AttentionFeatureExtractor`** - Self-attention based
-   - Learns feature interactions
-   - Good for relational data
-   - More parameters
+| Type | Class | Best for |
+|---|---|---|
+| `fc` | `FCFeatureExtractor` | Quick prototyping, small datasets |
+| `fcbn` | `FCBNFeatureExtractor` | General use (default), regularized |
+| `resnet` | `ResNetFeatureExtractor` | Deeper networks, gradient stability |
+| `attention` | `AttentionFeatureExtractor` | Feature interactions, relational data |
+| `direct_attention` | `DirectAttentionExtractor` | Attention on raw inputs (e.g., spectroscopy wavelengths) |
+| `attention_weighted` | `AttentionWeightedExtractor` | Interpretable feature importance weights |
+| `custom` | any `nn.Module` | User-provided architecture |
 
 ### Factory Function
 
-Use `get_feature_extractor()` to create extractors:
-
 ```python
-from deep_kernel_gp import get_feature_extractor
+from dkgp import get_feature_extractor
 
 # Simple FC
 extractor = get_feature_extractor('fc', input_dim=100, feature_dim=16)
 
-# FC + BatchNorm 
+# FC + BatchNorm (recommended default)
 extractor = get_feature_extractor('fcbn', input_dim=100, feature_dim=16,
                                   hidden_dims=[512, 256, 128], dropout=0.3)
 
@@ -53,79 +47,56 @@ extractor = get_feature_extractor('fcbn', input_dim=100, feature_dim=16,
 extractor = get_feature_extractor('resnet', input_dim=100, feature_dim=16,
                                   hidden_dim=256, num_blocks=3)
 
-# Attention
+# Self-attention
 extractor = get_feature_extractor('attention', input_dim=100, feature_dim=16,
                                   hidden_dim=128, num_heads=4)
 
-# Custom
+# Direct attention on raw features (e.g., 256 wavelengths → wavelength-to-wavelength map)
+extractor = get_feature_extractor('direct_attention', input_dim=256, feature_dim=16,
+                                  num_heads=4)
+
+# Attention-weighted (interpretable per-feature importance scores)
+extractor = get_feature_extractor('attention_weighted', input_dim=256, feature_dim=16,
+                                  base_extractor='fcbn')
+
+# Custom nn.Module
 import torch.nn as nn
 my_net = nn.Sequential(nn.Linear(100, 64), nn.ReLU(), nn.Linear(64, 16))
 extractor = get_feature_extractor('custom', custom_extractor=my_net)
 ```
 
-## Usage
+---
 
-### Regression
+## Regression
 
 ```python
-from deep_kernel_gp import fit_dkgp, predict
+from dkgp import fit_dkgp, predict_dkgpr
 
-# Default extractor (FC + BatchNorm)
+# Fit (default: FC + BatchNorm extractor)
 mll, gp, dkl, losses = fit_dkgp(X_train, y_train, feature_dim=16)
 
 # Predict
-mean, std = predict(dkl, X_test, return_std=True)
+mean, std = predict_dkgpr(dkl, X_test, return_std=True)
 ```
 
-### Classification
+### With confidence weights (heteroscedastic data)
 
 ```python
-from dkgp import fit_dkgp_classifier, predict_classifier
-
-# Default extractor (FC + BatchNorm)
-model, losses = fit_dkgp_classifier(X_train, y_train, num_classes=4)
-
-# Predict
-y_pred = predict_classifier(model, X_test)
-y_proba = predict_classifier(model, X_test, return_proba=True)
+weights = np.array([1.0, 0.5, 1.0, ...])  # Lower weight for noisy samples
+mll, gp, dkl, losses = fit_dkgp(X_train, y_train, confidence_weights=weights)
 ```
 
-## Comparison of Extractors
-
-**`fc`:**
-- Prototyping quickly
-- Small datasets (<100 samples)
-- Simple patterns
-
-**`fcbn`:**
-- General purpose modeling
-- Medium datasets (100-10,000 samples)
-- Want robustness
-
-**`resnet`:**
-- Need deeper networks
-- Experiencing vanishing gradients
-- Want stable training
-
-**`attention`:**
-- Feature interactions matter
-- Have relational data
-- Computational cost is okay
-
-## Complete Example
+### Full example
 
 ```python
 import numpy as np
-from dkgp import fit_dkgp, predict, get_feature_extractor
+from dkgp import fit_dkgp, predict_dkgpr
 
-# Generate data
 np.random.seed(42)
 X_train = np.random.randn(200, 50)
 y_train = np.sum(X_train[:, :5], axis=1) + 0.1 * np.random.randn(200)
-X_test = np.random.randn(50, 50)
-y_test = np.sum(X_test[:, :5], axis=1) + 0.1 * np.random.randn(50)
+X_test  = np.random.randn(50, 50)
 
-# Fit
 mll, gp, dkl, losses = fit_dkgp(
     X_train, y_train,
     feature_dim=16,
@@ -136,59 +107,195 @@ mll, gp, dkl, losses = fit_dkgp(
     lr_gp=1e-2
 )
 
-# Predict
-mean, std = predict(dkl, X_test, return_std=True)
-
+mean, std = predict_dkgpr(dkl, X_test, return_std=True)
 ```
 
-## API Reference
+---
 
-### Regression (`gpr.py`)
-
-- `DeepKernelGP` - Main regression model class
-- `ConfidenceWeightedMLL` - Weighted loss for heteroscedastic data
-- `train_dkgp()` - Low-level training function
-- `fit_dkgp()` - High-level training interface
-
-### Classification (`gpc.py`)
-
-- `DeepKernelGPClassifier` - Main classification model class
-- `BinaryGPClassificationModel` - Binary GP model
-- `MultiClassGPClassificationModel` - Multi-class GP model
-- `train_dkgp_classifier()` - Low-level training function
-- `fit_dkgp_classifier()` - High-level training interface
-- `predict_classifier()` - Prediction function
-
-### Feature Extractors (`models.py`)
-
-- `FCFeatureExtractor` - Simple FC
-- `FCBNFeatureExtractor` - FC + BatchNorm + Dropout (default)
-- `ResNetFeatureExtractor` - ResNet style
-- `AttentionFeatureExtractor` - Self-attention
-- `get_feature_extractor()` - Factory function
-
-
-### Custom Hybrid Extractor
+## Classification
 
 ```python
+from dkgp import fit_dkgp_classifier, predict_classifier
+
+# Fit (num_classes auto-detected if not specified)
+model, losses = fit_dkgp_classifier(X_train, y_train, num_classes=4)
+
+# Predict labels
+y_pred = predict_classifier(model, X_test)
+
+# Predict probabilities
+y_proba = predict_classifier(model, X_test, return_proba=True)
+
+# Batched prediction
+y_pred = predict_classifier(model, X_test, batch_size=256)
+```
+
+### With confidence weights
+
+```python
+weights = np.array([1.0, 0.8, 1.0, 0.5, ...])
+model, losses = fit_dkgp_classifier(X_train, y_train, confidence_weights=weights)
+```
+
+---
+
+## Bayesian Optimization
+
+After fitting a regression model, use acquisition functions to guide optimization:
+
+```python
+from dkgp import (
+    expected_improvement,
+    upper_confidence_bound,
+    probability_of_improvement,
+    thompson_sampling,
+    expected_improvement_with_constraints,
+)
+
+# Expected Improvement
+ei = expected_improvement(dkl, X_candidates, best_observed=y_train.max())
+
+# Upper Confidence Bound
+ucb = upper_confidence_bound(dkl, X_candidates, beta=2.0)
+
+# Probability of Improvement
+pi = probability_of_improvement(dkl, X_candidates, best_observed=y_train.max())
+
+# Thompson Sampling
+sample = thompson_sampling(dkl, X_candidates)
+
+# EI with constraints
+ei_c = expected_improvement_with_constraints(dkl, X_candidates, constraint_models=[...])
+```
+
+---
+
+## Pairwise GP (Preference Learning)
+
+Learn from pairwise comparisons (A preferred over B) rather than absolute values:
+
+```python
+from dkgp import (
+    fit_dkgppw,
+    predict_utility,
+    dkgppw_eubo,   # Expected Utility of Best Option acquisition
+    dkgppw_ucb,    # UCB acquisition
+    acquire_preference,
+    sample_comparison_pairs,
+    get_simulated_preference,
+)
+
+# Fit from comparison pairs
+model = fit_dkgppw(X, comparisons)  # comparisons: (n_pairs, 2) array of [winner_idx, loser_idx]
+
+# Predict utility scores
+utility_mean, utility_std = predict_utility(model, X_candidates)
+
+# Acquire next pair to compare (active preference learning)
+next_pair = acquire_preference(model, X_candidates, method='eubo')
+```
+
+---
+
+## Sample Weighting
+
+Learnable per-sample weights for robust training against noisy labels:
+
+```python
+from dkgp import SampleWeightModule, analyze_sample_weights
+
+# Create weight module
+weight_module = SampleWeightModule(n_samples=len(X_train))
+
+# Get learned weights after training
+weights = weight_module.get_weights().detach().numpy()  # shape (n_samples,)
+
+# Analyze which samples are noisy
+analysis = analyze_sample_weights(
+    sample_weights=weights,
+    y_train=y_train,
+    predictions=train_preds,
+    threshold=0.5
+)
+# Returns: {'noisy_indices', 'clean_indices', 'weight_stats', 'noisy_stats'}
+```
+
+Use `SampleWeightedMLL` in `gpr.py` to incorporate learned sample weights into training.
+
+---
+
+## Attention Analysis
+
+Inspect what the model has learned to focus on:
+
+```python
+from dkgp import (
+    get_attention_scores,
+    get_attention_for_sample,
+    analyze_attention_locality,
+    summarize_attention,
+)
+
+# Attention scores for all training data
+scores = get_attention_scores(model, X_train)
+
+# Attention for a single sample
+attn = get_attention_for_sample(model, X_train[0], average_heads=True)
+
+# Analyze how localized the attention is
+locality = analyze_attention_locality(scores)
+
+# Full summary report
+summarize_attention(model, X_train, sample_idx=0)
+```
+
+For `DirectAttentionExtractor` — direct feature-to-feature maps:
+
+```python
+attention_map = extractor.get_attention_map(x)
+# shape: (num_heads, input_dim, input_dim)
+# e.g., for spectroscopy: which wavelengths attend to which
+```
+
+For `AttentionWeightedExtractor` — per-feature importance scores:
+
+```python
+weights = extractor.get_attention_weights(x)
+# shape: (input_dim,), sums to 1.0
+top_features = np.argsort(weights)[-10:][::-1]
+```
+
+---
+
+## Model Persistence
+
+```python
+from dkgp import save_model, load_model
+
+save_model(dkl, 'my_model.pt')
+dkl = load_model('my_model.pt')
+```
+
+---
+
+## Custom Hybrid Extractor
+
+```python
+import torch
 import torch.nn as nn
-from deep_kernel_gp import get_feature_extractor, fit_dkgp
+from dkgp import get_feature_extractor, fit_dkgp
 
 class HybridExtractor(nn.Module):
     def __init__(self, input_dim, feature_dim):
         super().__init__()
-        # Combine ResNet and Attention
-        self.resnet = get_feature_extractor('resnet', input_dim, feature_dim//2)
-        self.attention = get_feature_extractor('attention', input_dim, feature_dim//2)
-        self.input_dim = input_dim
+        self.resnet   = get_feature_extractor('resnet',   input_dim, feature_dim // 2)
+        self.attention = get_feature_extractor('attention', input_dim, feature_dim // 2)
+        self.input_dim  = input_dim
         self.feature_dim = feature_dim
-    
-    def forward(self, x):
-        res_features = self.resnet(x)
-        attn_features = self.attention(x)
-        return torch.cat([res_features, attn_features], dim=-1)
 
-# Use it
+    def forward(self, x):
+        return torch.cat([self.resnet(x), self.attention(x)], dim=-1)
+
 hybrid = HybridExtractor(input_dim=100, feature_dim=16)
 mll, gp, dkl, losses = fit_dkgp(
     X, y,
@@ -196,6 +303,91 @@ mll, gp, dkl, losses = fit_dkgp(
     extractor_kwargs={'custom_extractor': hybrid}
 )
 ```
+
+---
+
+## API Reference
+
+### Regression (`gpr.py`)
+
+| Symbol | Description |
+|---|---|
+| `DeepKernelGP` | Main regression model class |
+| `ConfidenceWeightedMLL` | Weighted MLL for heteroscedastic data |
+| `SampleWeightedMLL` | MLL with learnable per-sample weights |
+| `train_dkgp()` | Low-level training function |
+| `fit_dkgp()` | High-level training interface |
+| `predict_dkgpr()` | Prediction (mean, std, full distribution) |
+| `expected_improvement()` | EI acquisition function |
+| `upper_confidence_bound()` | UCB acquisition function |
+| `probability_of_improvement()` | PI acquisition function |
+| `thompson_sampling()` | Thompson sampling acquisition |
+| `expected_improvement_with_constraints()` | Constrained EI |
+
+### Classification (`gpc.py`)
+
+| Symbol | Description |
+|---|---|
+| `DeepKernelGPClassifier` | Main classification model class |
+| `BinaryGPClassificationModel` | Variational GP for binary classification |
+| `MultiClassGPClassificationModel` | Variational GP for multi-class |
+| `ConfidenceWeightedELBO` | Weighted ELBO loss |
+| `train_dkgp_classifier()` | Low-level training function |
+| `fit_dkgp_classifier()` | High-level training interface |
+| `predict_classifier()` | Prediction (labels or probabilities) |
+
+### Pairwise GP (`gppw.py`)
+
+| Symbol | Description |
+|---|---|
+| `DeepKernelPairwiseGP` | Main pairwise GP model class |
+| `fit_dkgppw()` | High-level training interface |
+| `train_dkgppw()` | Low-level training function |
+| `predict_utility()` | Predict utility scores |
+| `dkgppw_eubo()` | EUBO acquisition function |
+| `dkgppw_ucb()` | UCB acquisition function |
+| `acquire_preference()` | Select next pair to compare |
+| `sample_comparison_pairs()` | Sample random pairs |
+| `get_simulated_preference()` | Simulate preferences from a true function |
+| `get_user_preference()` | Collect preference from user interactively |
+| `plot_option()` | Plot a candidate option |
+| `plot_predictions()` | Plot predicted utilities |
+
+### Feature Extractors (`models.py`)
+
+| Symbol | Description |
+|---|---|
+| `FCFeatureExtractor` | Simple FC |
+| `FCBNFeatureExtractor` | FC + BatchNorm + Dropout (default) |
+| `ResNetFeatureExtractor` | ResNet-style with skip connections |
+| `AttentionFeatureExtractor` | Self-attention (attends in hidden space) |
+| `DirectAttentionExtractor` | Self-attention on raw input features |
+| `AttentionWeightedExtractor` | Per-feature importance weighting |
+| `get_feature_extractor()` | Factory function |
+
+### Sample Weighting (`sample_weighting.py`)
+
+| Symbol | Description |
+|---|---|
+| `SampleWeightModule` | Learnable per-sample weight module |
+| `analyze_sample_weights()` | Identify noisy/outlier samples |
+
+### Utilities (`utils.py`)
+
+| Symbol | Description |
+|---|---|
+| `get_attention_scores()` | Attention scores across dataset |
+| `get_attention_for_sample()` | Attention for a single input |
+| `analyze_attention_locality()` | Measure attention localization |
+| `summarize_attention()` | Print attention summary report |
+| `save_model()` | Save model to file |
+| `load_model()` | Load model from file |
+| `split_train_test()` | Train/test split utility |
+| `get_grid_coords()` | Grid coordinates for image data |
+| `get_subimages()` | Extract subimage patches |
+
+---
+
 ## License
 
 MIT
